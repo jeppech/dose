@@ -29,23 +29,75 @@ universe.update(mh2_init)
 let strobe = false
 let flash = false
 
-const tilt_animation = new DMX.Animation().add({
-  4: tilt_home - max_tilt_offset,
-  18: tilt_home + max_tilt_offset,
-}, 2000).add({
-  4: tilt_home + max_tilt_offset,
-  18: tilt_home - max_tilt_offset,
-}, 2000).runLoop(universe)
+function floor_sweep() {
+  const tilt_animation = new DMX.Animation().add({
+    4: tilt_home - max_tilt_offset,
+    18: tilt_home + max_tilt_offset,
+  }, 2000).add({
+    4: tilt_home + max_tilt_offset,
+    18: tilt_home - max_tilt_offset,
+  }, 2000).runLoop(universe)
 
-setInterval(() => {
-  const random_pan = min_max(pan_home - max_pan_offset, pan_home + max_pan_offset)
-  const pan_inverted = 255 - random_pan
-  new DMX.Animation().add({
-    3: random_pan,
-    17: pan_inverted,
-  }, 1500).run(universe)
-}, 3500)
+  const pan_interval = setInterval(() => {
+    const random_pan = min_max(pan_home - max_pan_offset, pan_home + max_pan_offset)
+    const pan_inverted = 255 - random_pan
+    new DMX.Animation().add({
+      3: random_pan,
+      17: pan_inverted,
+    }, 1500).run(universe)
+  }, 3500)
 
+  return [tilt_animation, pan_interval]
+}
+
+function wall_sweep() {
+  let tilt = 5
+  universe.update({ 4: tilt, 18: 255 - tilt })
+  const pan_animation = new DMX.Animation().add({
+    3: 0,
+    17: 255,
+  }, 6500).add({
+    3: 255,
+    17: 0,
+  }, 6500).runLoop(universe)
+
+  // swing
+  const pan_interval = setInterval(() => {
+    const swing = min_max(0, 1)
+
+    if (swing) {
+      tilt = tilt === 5 ? 250 : 5
+      universe.update({ 4: tilt, 18: 255 - tilt })
+      console.log("move: swing")
+    }
+  }, 3000)
+
+  return [pan_animation, pan_interval]
+}
+
+function move_fixtures() {
+  // reset
+  // universe.update({ 3: pan_home, 4: tilt_home, 17: pan_home, 18: tilt_home })
+  const random_sweep = min_max(0, 1)
+
+  let anim, interval;
+
+  if (random_sweep) {
+    console.log('move: floor sweep');
+    [anim, interval] = floor_sweep();
+  } else {
+    console.log('move: wall sweep');
+    [anim, interval] = wall_sweep();
+  }
+
+  setTimeout(() => {
+    anim.stop()
+    if (interval) {
+      clearInterval(interval)
+    }
+    move_fixtures()
+  }, 30000)
+}
 // Color
 function min_max(min, max) {
   return Math.floor(Math.random() * (max - min + 1) + min)
@@ -152,6 +204,8 @@ setInterval(() => {
   }, 4500)
   
 }, 10000)
+
+move_fixtures()
 
 // /**
 //  * 
